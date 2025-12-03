@@ -1,0 +1,571 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Qadeer Khan — Application Security Researcher </title>
+
+  <!-- Fonts & libs -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;500;700;900&family=Orbitron:wght@600;800&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+
+  <!-- Tailwind via CDN for quick layout -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Small sound for terminal keystrokes -->
+  <audio id="typeSfx" src="https://assets.mixkit.co/sfx/preview/mixkit-classic-click-1117.mp3"></audio>
+
+  <style>
+    :root{
+      --bg:#0e1832;
+      --neon-1:#e84bd6;
+      --neon-2:#5c1ae2;
+      --accent:#ff0090;
+      --muted:#b58ff3;
+    }
+
+    html,body{height:100%}
+    body{
+      margin:0;
+      min-height:100%;
+      background: radial-gradient(1000px 500px at 10% 10%, rgba(155,106,255,0.06), transparent 8%),
+                  radial-gradient(800px 400px at 85% 85%, rgba(255, 0, 25, 0.03), transparent 8%),
+                  var(--bg);
+      color:#dfe6ea;
+      font-family: Inter, system-ui, sans-serif;
+      -webkit-font-smoothing:antialiased;
+      -moz-osx-font-smoothing:grayscale;
+      overflow-x:hidden;
+    }
+
+    /* Matrix canvas sits behind everything */
+    canvas#matrix {
+      position: fixed;
+      inset:0;
+      z-index: -10;
+      opacity:0.14;
+      mix-blend-mode:screen;
+    }
+
+    /* Terminal intro overlay */
+    #terminalIntro {
+      position: fixed;
+      inset:0;
+      background: rgba(0,0,0,0.98);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      z-index:9999;
+      color:var(--accent);
+      font-family: 'Courier New', monospace;
+      padding:30px;
+    }
+
+    .terminalBox{
+      width:95%;
+      max-width:900px;
+      border-radius:12px;
+      padding:28px;
+      background: linear-gradient(180deg, rgba(0, 0, 0, 0), rgba(0,0,0,0.55));
+      box-shadow: 0 10px 40px rgba(159, 116, 203, 0.8), 0 0 40px rgba(88, 173, 216, 0.498) inset;
+      border:1px solid rgba(207, 13, 149, 0.551);
+    }
+
+    .typingLine{ font-size:16px; line-height:1.6; color:var(--accent) }
+
+    /* Hero layout */
+    .hero {
+      padding:80px 18px;
+      max-width:1200px;
+      margin:0 auto;
+      display:grid;
+      grid-template-columns: 380px 1fr;
+      gap:36px;
+      align-items:center;
+    }
+
+    @media (max-width: 880px){
+      .hero{ grid-template-columns: 1fr; padding:40px 14px; gap:20px; text-align:center }
+    }
+
+    /* Profile circle / silhouette */
+    .profileWrap{
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      flex-direction:column;
+    }
+    .circle{
+      width:260px; height:260px; border-radius:50%;
+      background: linear-gradient(180deg, rgba(0,0,0,0.35), rgba(0,0,0,0.2));
+      display:grid; place-items:center;
+      box-shadow: 0 0 40px rgba(155,106,255,0.12), 0 10px 40px rgba(0,0,0,0.6);
+      position:relative;
+      border:2px solid rgba(255,255,255,0.04);
+      overflow:hidden;
+    }
+
+    .photo{
+      width:100%; height:100%;
+      object-fit:cover;
+      filter: contrast(1.05) saturate(1.1);
+      transform-origin:center;
+      transition: transform 450ms ease;
+      mix-blend-mode:screen;
+    }
+
+    /* neon ring */
+    .neonRing{
+      position:absolute; inset:-6px; border-radius:50%;
+      padding:6px;
+      background: conic-gradient(from 120deg, rgba(255, 0, 38, 0.12), rgba(155,106,255,0.10), rgba(255, 0, 89, 0.08));
+      -webkit-mask: radial-gradient(circle at center, black 60%, transparent 61%);
+      animation: ringGlow 3.8s linear infinite;
+      pointer-events:none;
+      z-index:3;
+    }
+
+    @keyframes ringGlow{
+      0%{ filter: blur(3px); opacity:0.85 }
+      50%{ filter: blur(10px); opacity:1 }
+      100%{ filter: blur(3px); opacity:0.85 }
+    }
+
+    .scanlines{
+      position:absolute; inset:0; background-image: linear-gradient(to bottom, rgba(0,0,0,0.02) 1px, transparent 1px);
+      background-size: 100% 6px; mix-blend-mode:overlay; opacity:0.25; pointer-events:none;
+    }
+
+    .profileHover:hover .photo{ transform: scale(1.06) rotate(-1deg) translateY(-3px) }
+
+    /* hero text */
+    .titleMain{
+      font-family: Orbitron, Inter, sans-serif;
+      font-size:40px; line-height:1.02; font-weight:800; color:#fff;
+      letter-spacing:-0.6px;
+    }
+    .titleAccent{ color: var(--accent); text-shadow: 0 0 20px rgba(146, 30, 189, 0.08) }
+
+    .roleTags{ display:flex; gap:10px; margin-top:10px; flex-wrap:wrap }
+    .roleBtn{
+      background:linear-gradient(90deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+      padding:8px 12px; border-radius:999px; font-size:13px; cursor:pointer;
+      border:1px solid rgba(255,255,255,0.03);
+      transition: all 220ms ease;
+      color:var(--neon-1);
+    }
+    .roleBtn.active{
+      color:#000; background: linear-gradient(90deg, var(--neon-1), var(--neon-2));
+      box-shadow: 0 6px 22px rgba(155,106,255,0.12);
+      border: none;
+    }
+
+    /* glitch hover effect for actionable text */
+    .glitchHover{
+      position:relative;
+      display:inline-block;
+    }
+    .glitchHover::after, .glitchHover::before{ content:''; position:absolute; inset:0; }
+    .glitchHover:hover{ color:var(--neon-1); text-shadow: -2px 0 var(--neon-2), 2px 0 var(--neon-1); transform: translateZ(0); }
+
+    /* panels */
+    .panel{
+      background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+      border:1px solid rgba(255,255,255,0.03);
+      padding:18px;
+      border-radius:12px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.6);
+    }
+
+    .skillsGrid{ display:grid; grid-template-columns: repeat(3,1fr); gap:14px; margin-top:18px }
+    @media (max-width:880px){ .skillsGrid{ grid-template-columns: repeat(2,1fr) } }
+
+    .skillCard{
+      border-radius:10px; padding:14px; min-height:90px;
+      background: linear-gradient(180deg, rgba(0,0,0,0.45), rgba(255,255,255,0.02));
+      border:1px solid rgba(255,255,255,0.03);
+      transition: transform 220ms ease, box-shadow 220ms ease;
+    }
+    .skillCard:hover{ transform: translateY(-6px); box-shadow: 0 14px 40px rgba(0,0,0,0.6), 0 0 30px rgba(0,255,179,0.04) inset }
+
+    /* projects grid */
+    .projectGrid{ display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-top:16px }
+    @media (max-width:880px){ .projectGrid{ grid-template-columns: 1fr } }
+    .projCard{ padding:16px; border-radius:12px; transition:transform 240ms ease; border:1px solid rgba(255,255,255,0.035); background:linear-gradient(180deg,rgba(0,0,0,0.35), rgba(0,0,0,0.25)) }
+    .projCard:hover{ transform: translateY(-8px) }
+
+    /* achievements row */
+    .achRow{ display:flex; gap:14px; flex-wrap:wrap; margin-top:14px }
+    .achBadge{ padding:10px 14px; border-radius:999px; background:linear-gradient(90deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); border:1px solid rgba(255,255,255,0.03); color:var(--neon-1); font-weight:700 }
+
+    /* socials */
+    .socials{ display:flex; gap:12px; margin-top:16px }
+    .socials a{ width:44px; height:44px; display:grid; place-items:center; border-radius:10px; background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.03) }
+    .socials a:hover{ transform:translateY(-6px); box-shadow: 0 8px 24px rgba(155,106,255,0.06) }
+
+    footer{ padding:40px 18px; color:var(--muted); font-size:13px; text-align:center; margin-top:30px }
+
+  </style>
+</head>
+<body>
+
+  <!-- Matrix background -->
+  <canvas id="matrix"></canvas>
+
+  <!-- Terminal Intro -->
+  <div id="terminalIntro" aria-hidden="false">
+    <div class="terminalBox">
+      <div id="termLines" class="typingLine"></div>
+    </div>
+  </div>
+
+  <!-- MAIN HERO -->
+  <header class="hero">
+    <!-- left: profile -->
+    <div class="profileWrap panel profileHover">
+      <div class="circle" id="profileCircle">
+        <!-- use profile.jpg (save your image as profile.jpg) -->
+        <img class="photo" src="qadeer.png"
+        <div class="neonRing"></div>
+        <div class="scanlines"></div>
+      </div>
+
+      <div style="margin-top:18px; text-align:center;">
+        <div class="titleMain"> <span class="titleAccent">0xqadeer</span></div>
+        <div style="margin-top:8px; color:var(--muted)">Application Security Researcher</div>
+
+        <div class="roleTags" style="justify-content:center; margin-top:14px;">
+          <button class="roleBtn active" data-role="appsec">Application Security</button>
+          <button class="roleBtn" data-role="bounty">Bug Bounty Hunter</button>
+          <button class="roleBtn" data-role="cloud">Cloud Security</button>
+           <button class="roleBtn" data-role="cloud">API Security Testing</button>
+            <button class="roleBtn" data-role="cloud">Exploit Development</button>
+        </div>
+
+        <div class="achRow" style="justify-content:center; margin-top:14px;">
+          <div class="achBadge">OSCP</div>
+          <div class="achBadge">OSWE</div>
+          <div class="achBadge">HackerOne</div>
+          <div class="achBadge">OWASP</div>
+        </div>
+
+        <div class="socials" style="justify-content:center;">
+          
+          <a title="LinkedIn" href="#" id="linkedinBtn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4.98 3.5C4.98 4.88 3.86 6 2.48 6S0 4.88 0 3.5 1.12 1 2.5 1 4.98 2.12 4.98 3.5zM.22 7.5h4.5v16H.22v-16zM8.9 7.5h4.3v2.1h.1c.6-1.1 2.1-2.1 4.3-2.1 4.6 0 5.5 3 5.5 6.9v9.1h-4.5v-8.2c0-2 .1-4.6-2.8-4.6-2.8 0-3.2 2.2-3.2 4.4v8.4H8.9v-16z" fill="currentColor"/></svg></a>
+          <a title="X / Twitter" href="#" id="twitterBtn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M22 5.9c-.6.3-1.3.5-2 .6.7-.4 1.3-1 1.6-1.7-.7.4-1.5.7-2.4.9-.7-.8-1.9-1.3-3-1.3-2.2 0-4 1.8-4 4 0 .3 0 .6.1.9C7.7 9.7 5 8.1 3.2 6c-.3.6-.5 1.3-.5 2 0 1.4.7 2.6 1.8 3.3-.6 0-1.2-.2-1.7-.5v.1c0 2 1.4 3.6 3.2 4-.3.1-.6.2-.9.2-.2 0-.4 0-.6-.1.4 1.3 1.6 2.2 3 2.2-1.1.9-2.4 1.4-3.9 1.4-.3 0-.6 0-.9-.1 1.4.9 3 1.5 4.7 1.5 5.5 0 8.5-4.6 8.5-8.6v-.4c.6-.4 1.2-1 1.6-1.6-.6.3-1.3.5-2 .6z" fill="currentColor"/></svg></a>
+          <a title="YOUTUBE" href="#" id="youtubeBtn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M19 2l-9 4-9-4v17l9 4 9-4V2z" fill="currentColor"/></svg></a>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- right: copy, tabs, projects -->
+    <div class="panel">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:14px; flex-wrap:wrap;">
+        <div>
+          <div style="font-size:13px; color:var(--muted)">Hello, I'm</div>
+          <div style="font-size:28px; font-weight:800; margin-top:6px">Qadeer Khan <span style="color:var(--neon-2); font-weight:700">— Application Security Researcher</span></div>
+          <p style="margin-top:10px; color:var(--muted); max-width:700px">
+            I’m Qadeer Khan, a Security Researcher on HackerOne and Bug Bounty Hunter with a deep passion for Web & API Security..
+          </p>
+
+          <div style="margin-top:16px;">
+            <button id="hireBtn" class="roleBtn glitchHover">ExploitCrew</button>
+            <button id="contactBtn" class="roleBtn" style="margin-left:10px">I1ackerOne</button>
+          </div>
+        </div>
+
+        <div style="min-width:220px;">
+          <div style="font-size:13px; color:var(--muted)">Quick Stats</div>
+          <div style="display:flex; gap:10px; margin-top:8px; flex-wrap:wrap;">
+            <div class="achBadge">Cloud Security</div>
+            <div class="achBadge">Scripting & Automation</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- tabs -->
+      <div style="margin-top:18px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+        <button class="tabBtn roleBtn activeTab" data-tab="overview">Overview</button>
+        <button class="tabBtn roleBtn" data-tab="skills">Skills</button>
+        <button class="tabBtn roleBtn" data-tab="projects">Projects</button>
+        <button class="tabBtn roleBtn" data-tab="achievements">Achievements</button>
+      </div>
+
+      <div id="tabPanels" style="margin-top:18px;">
+        <div class="tabPanel" data-panel="overview">
+          <div style="display:flex; gap:12px; align-items:flex-start; flex-wrap:wrap;">
+            <div style="flex:1; min-width:240px">
+              <div class="panel" style="padding:12px;">
+                <div style="font-weight:700; margin-bottom:6px">About</div>
+                <div style="color:var(--muted); font-size:14px;">
+                  I'm an Application Security Researcher with hands-on experience in offensive security, vulnerability research, and penetration testing.
+                  My work focuses on securing web, mobile, and cloud applications through continuous assessment, exploit development, and proactive defense strategies.
+                  Active on HackerOne, I've identified and responsibly disclosed multiple critical vulnerabilities, earning recognition and Hall of Fame mentions from global organizations.
+                  Beyond bug hunting, I'm passionate about API Security, Cloud Security, and PTaaS engagements, helping companies strengthen their security posture before threats strike.
+                  Bridging offensive research and real-world defense to build a safer digital future.
+                </div>
+              </div>
+
+              <div class="panel" style="padding:12px; margin-top:10px;">
+                <div style="font-weight:700; margin-bottom:6px">Services</div>
+                <ul style="color:var(--muted); font-size:14px; margin-left:14px; line-height:1.7;">
+                  <li>AppSec Assessments & Pentests</li>
+                  <li>Bug Bounty Research</li>
+                  <li>Cloud Security Reviews</li>
+                  <li>API Security Assessment</li>
+                   <li>Exploit Development & Proof of Concept</li>
+                </ul>
+              </div>
+            </div>
+
+            <div style="flex:1; min-width:240px">
+              <div class="panel" style="padding:12px;">
+                <div style="font-weight:700; margin-bottom:6px">Recent Focus</div>
+                <ul style="color:var(--muted); font-size:14px; margin-left:14px;">
+                  <li>Zero-Day Research & Exploit Demos</li>
+                  <li>SSRF & cloud metadata abuse</li>
+                  <li>CTF / Challenge Participation</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="tabPanel hidden" data-panel="skills">
+          <div class="skillsGrid">
+            <div class="skillCard">
+              <div style="font-weight:700; color:var(--neon-1)">Web Application Security</div>
+              <div style="color:var(--muted); margin-top:8px">XSS, SQLi, CSRF, SSRF.</div>
+            </div>
+            <div class="skillCard">
+              <div style="font-weight:700; color:var(--neon-1)">API Security Testing</div>
+              <div style="color:var(--muted); margin-top:8px">JWT, OAuth, rate-limiting, fuzzing.</div>
+            </div>
+            <div class="skillCard">
+              <div style="font-weight:700; color:var(--neon-1)">Mobile App Security</div>
+              <div style="color:var(--muted); margin-top:8px">iOS & Android pentesting, reverse engineering.</div>
+            </div>
+            <div class="skillCard">
+              <div style="font-weight:700; color:var(--neon-1)">Cloud Security</div>
+              <div style="color:var(--muted); margin-top:8px">AWS, Azure, GCP audits & misconfigurations</div>
+            </div>
+            <div class="skillCard">
+              <div style="font-weight:700; color:var(--neon-1)">Bug Bounty Hunting</div>
+              <div style="color:var(--muted); margin-top:8px">HackerOne & other platforms.</div>
+            </div>
+            <div class="skillCard">
+              <div style="font-weight:700; color:var(--neon-1)">Exploit Development</div>
+              <div style="color:var(--muted); margin-top:8px">PoC creation, zero-day research.</div>
+            </div>
+            <div class="skillCard">
+              <div style="font-weight:700; color:var(--neon-1)">Reverse Engineering</div>
+              <div style="color:var(--muted); margin-top:8px">Binary analysis, app decompiling.</div>
+            </div>
+            <div class="skillCard">
+              <div style="font-weight:700; color:var(--neon-1)">Penetration Testing Tools</div>
+              <div style="color:var(--muted); margin-top:8px">Burp Suite, Nmap, Metasploit.</div>
+            </div>
+            <div class="skillCard">
+              <div style="font-weight:700; color:var(--neon-1)">Threat Modeling</div>
+              <div style="color:var(--muted); margin-top:8px">Risk analysis, attack surface evaluation.</div>
+            </div>
+            <div class="skillCard">
+              <div style="font-weight:700; color:var(--neon-1)">CTF / Ethical Hacking Challenges</div>
+              <div style="color:var(--muted); margin-top:8px">Capture-the-Flag, practical hacking exercises.</div>
+            </div>
+              
+
+             
+            </div>
+          </div>
+        </div>
+
+        <div class="tabPanel hidden" data-panel="projects">
+          <div class="projectGrid">
+            <div class="projCard">
+              <div style="font-weight:800; font-size:16px">Advanced Web App Pentest</div>
+              <div style="color:var(--muted); margin-top:8px">Deep-dive intocomplex web apps Found and responsibly disclosed critic vulnerabilities</div>
+            </div>
+            <div class="projCard">
+              <div style="font-weight:800; font-size:16px">API Security Assessment</div>
+              <div style="color:var(--muted); margin-top:8px">Tested REST & GraphQL APIs
+Automated fuzzing and token bypasse.</div>
+            </div>
+            <div class="projCard">
+              <div style="font-weight:800; font-size:16px">OAuth Token Logic</div>
+              <div style="color:var(--muted); margin-top:8px">Found token refresh bypass enabling privilege escalation in mobile app.</div>
+            </div>
+            <div class="projCard">
+              <div style="font-weight:800; font-size:16px">Cloud Security Audit</div>
+              <div style="color:var(--muted); margin-top:8px">AWS/Azure/GCP misconfigurations
+IAM & access review, security hardening recommendations.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="tabPanel hidden" data-panel="achievements">
+          <div style="display:flex; gap:14px; flex-wrap:wrap;">
+            <div class="panel" style="min-width:220px;">
+              <div style="font-weight:800">OSCP Certified </div>
+              <div style="color:var(--muted); margin-top:8px">Offensive Security Certified Professional.</div>
+            </div>
+            <div class="panel" style="min-width:220px;">
+              <div style="font-weight:800">OSWE Certified</div>
+              <div style="color:var(--muted); margin-top:8px">Offensive Security Web Expert.</div>
+            </div>
+            <div class="panel" style="min-width:220px;">
+              <div style="font-weight:800">CVE / 0-day</div>
+              <div style="color:var(--muted); margin-top:8px">Responsible disclosure & CVE coordination experience.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </header>
+
+  <!-- foot / extra -->
+  <main style="max-width:1200px;margin:20px auto; padding:0 18px;">
+    <!-- optional extended projects or blog previews could be added here -->
+  </main>
+
+  <footer>
+    © <span id="year"></span> Qadeer Khan — Application Security • Bug Bounty • Cloud Security 🇩🇪
+  </footer>
+
+  <!-- SCRIPTS -->
+  <script>
+    // set year
+    document.getElementById('year').textContent = new Date().getFullYear();
+
+    // Simple matrix effect (lightweight)
+    (function matrix(){
+      const canvas = document.getElementById('matrix'), ctx = canvas.getContext('2d');
+      function resize(){
+        canvas.width = innerWidth; canvas.height = innerHeight;
+        cols = Math.floor(canvas.width / fontSize);
+        drops = new Array(cols).fill(1);
+      }
+      let fontSize = 15, cols, drops;
+      resize(); window.addEventListener('resize', resize);
+      const chars = '01';
+      function draw(){
+        ctx.fillStyle = 'rgba(0,0,0,0.06)'; ctx.fillRect(0,0,canvas.width,canvas.height);
+        ctx.fillStyle = '#00ffb3'; ctx.font = fontSize + 'px monospace';
+        for(let i=0;i<drops.length;i++){
+          const text = chars[Math.floor(Math.random()*chars.length)];
+          ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+          if(drops[i]*fontSize > canvas.height && Math.random() > 0.975) drops[i]=0;
+          drops[i]++;
+        }
+      }
+      setInterval(draw, 50);
+    })();
+
+    // Terminal intro typing
+    (function intro(){
+      const introEl = document.getElementById('terminalIntro');
+      const lines = [
+        'booting secure shell...',
+       'Hi...',
+        'Hallo...',
+        'こんにちは...',
+        'नमस्ते...',
+        'Привет...',
+        'Salam...',
+
+        
+      
+        
+        
+        
+      ];
+      const el = document.getElementById('termLines');
+      let i=0, idx=0;
+      const sfx = document.getElementById('typeSfx');
+
+      function typeLine(){
+        if(i >= lines.length) {
+          // fade out
+          gsap.to(introEl, {opacity:0, duration:0.9, delay:0.4, onComplete: ()=> introEl.style.display='none'});
+          return;
+        }
+        const line = lines[i];
+        if(idx <= line.length){
+          el.innerHTML = line.slice(0, idx) + '<span style="color:transparent">_</span>';
+          if(idx % 2 === 0){ try{ sfx.currentTime = 0; sfx.play(); }catch(e){} }
+          idx++;
+          setTimeout(typeLine, 30+ Math.random()*40);
+        } else {
+          el.innerHTML = el.innerHTML + '<br>';
+          i++; idx=0;
+          setTimeout(typeLine, 380);
+        }
+      }
+      setTimeout(typeLine, 500);
+    })();
+
+    // Role buttons micro interactions
+    document.querySelectorAll('.roleBtn').forEach(btn=>{
+      btn.addEventListener('click', ()=> {
+        document.querySelectorAll('.roleBtn').forEach(b=>b.classList.remove('active'));
+        btn.classList.add('active');
+        // small gsap pop
+        gsap.fromTo(btn, {scale:0.96}, {scale:1, duration:0.35, ease:'elastic.out(1,0.6)'});
+      });
+    });
+
+    // Tabs system
+    document.querySelectorAll('.tabBtn').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        document.querySelectorAll('.tabBtn').forEach(b=>b.classList.remove('activeTab'));
+        btn.classList.add('activeTab');
+        const target = btn.dataset.tab;
+        document.querySelectorAll('.tabPanel').forEach(panel=>{
+          if(panel.dataset.panel === target) panel.classList.remove('hidden');
+          else panel.classList.add('hidden');
+        });
+        // smooth bring into view
+        gsap.fromTo('[data-panel="'+target+'"]', {y:12, opacity:0}, {y:0, opacity:1, duration:0.5});
+      });
+    });
+
+    // Hover glitch micro effect for profile circle
+    const circle = document.getElementById('profileCircle');
+    circle.addEventListener('mousemove', e=>{
+      const w = circle.clientWidth, h = circle.clientHeight;
+      const x = (e.offsetX - w/2) / (w/2);
+      const y = (e.offsetY - h/2) / (h/2);
+      gsap.to('#profilePhoto', {x: x*6, y: y*6, rotation: x*2, scale:1.03, duration:0.9, ease:'power3.out'});
+    });
+    circle.addEventListener('mouseleave', ()=> gsap.to('#profilePhoto', {x:0,y:0,rotation:0,scale:1, duration:0.7}));
+
+    // Make tab "skills" default hidden etc (overview shows initially)
+    // already set in markup
+
+    // clickable socials (placeholder hooks)
+
+    document.getElementById('linkedinBtn').href = 'https://www.linkedin.com/in/qadeer-khan-a2a69a39b';
+    document.getElementById('twitterBtn').href = 'https://twitter.com/0xqadeer';
+    document.getElementById('youtubeBtn').href = 'https://www.youtube.com/channel/UCI-X25-lNtjAJC5RITiizAw';
+    
+
+    // small entrance animations
+    gsap.from('.hero .panel', {y:20, opacity:0, duration:0.9, stagger:0.12});
+    gsap.from('.circle', {scale:0.92, opacity:0, duration:0.9, delay:0.2});
+    gsap.from('.titleMain', {y:10, opacity:0, duration:0.8, delay:0.25});
+
+    // Accessibility: keyboard toggle for intro (press Esc to hide)
+    window.addEventListener('keydown', e=>{
+      if(e.key==='Escape'){
+        const el = document.getElementById('terminalIntro');
+        if(el && el.style.display !== 'none') { gsap.to(el, {opacity:0, duration:0.3, onComplete: ()=> el.style.display='none'}); }
+      }
+    });
+
+  </script>
+
+</body>
+</html>
